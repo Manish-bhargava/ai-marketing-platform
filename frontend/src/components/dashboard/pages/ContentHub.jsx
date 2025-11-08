@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   UploadCloud,
   Zap,
@@ -13,9 +13,12 @@ import {
   Trash2,
   Filter,
 } from 'lucide-react';
+import apiService from '../../../services/apiService';
+import GeneratedContentDisplay from './GeneratedContentDisplay'; // <-- 1. IMPORT new component
 
 // --- Content Hub Page ---
 const ContentHub = () => {
+  // ... (contentItems and getStatusChip functions remain the same) ...
   const contentItems = [
     { name: 'Q3 Marketing Report Draft', type: 'Document', status: 'Draft', date: '2024-07-20', icon: FileText },
     { name: 'New Product Launch Video Ad', type: 'Video', status: 'Review', date: '2024-07-18', icon: Video },
@@ -24,6 +27,11 @@ const ContentHub = () => {
     { name: 'Social Media Captions - August', type: 'Social Post', status: 'Published', date: '2024-07-05', icon: MessageCircle },
   ];
 
+  const [prompt, setPrompt] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState(null); // This will now store the OBJECT
+  const [error, setError] = useState(null);
+  
   const getStatusChip = (status) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
@@ -33,6 +41,29 @@ const ContentHub = () => {
       default: return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
     }
   };
+
+  // --- 2. UPDATE handleGenerateContent ---
+  const handleGenerateContent = async () => {
+    setIsLoading(true);
+    setError(null);
+    setGeneratedContent(null);
+    try {
+      const response = await apiService.generateContent(prompt);
+
+      // Store the actual JSON object from the job
+      if (response.success && response.job && response.job.generatedContent) {
+        setGeneratedContent(response.job.generatedContent); // <-- NO JSON.stringify
+      } else {
+        throw new Error(response.message || 'Invalid response format from API');
+      }
+    } catch (err) {
+      setGeneratedContent(null);
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  // ----------------------------------------
 
   return (
     <div className="animate-fade-in-sm space-y-6">
@@ -47,6 +78,7 @@ const ContentHub = () => {
             Browse Files
           </button>
         </div>
+        
         {/* Generate Content */}
         <div className="rounded-lg bg-white p-8 shadow-sm dark:bg-gray-950">
           <div className="flex items-center gap-4">
@@ -61,17 +93,43 @@ const ContentHub = () => {
           <textarea
             className="mt-4 w-full rounded-md border border-gray-300 p-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             rows="3"
-            placeholder="Describe the content you need (e.g., 'a blog post outline about Q3 marketing strategies')..."
+            placeholder="Describe the content you need (e.g., 'a blog post outline...')"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
           ></textarea>
-          <button className="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">
-            Generate Content
+          <button
+            className="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+            onClick={handleGenerateContent}
+            disabled={isLoading || !prompt}
+          >
+            {isLoading ? 'Generating (this may take 10s)...' : 'Generate Content'}
           </button>
         </div>
       </div>
 
+      {/* --- 3. UPDATE The Display Logic --- */}
+      
+      {/* Show error if one exists */}
+      {error && (
+        <div className="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-950">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Error</h3>
+          <div className="mt-4 rounded-md bg-red-50 p-4 dark:bg-red-900/30">
+            <p className="text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Show the formatted content component */}
+      {generatedContent && !error && (
+        <GeneratedContentDisplay content={generatedContent} />
+      )}
+      {/* ------------------------------- */}
+
+
       {/* Content Library */}
       <div className="rounded-lg bg-white shadow-sm dark:bg-gray-950">
         <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-800">
+          {/* ... (rest of the table) ... */}
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Your Content Library</h2>
           <div className="flex items-center gap-2">
             <button className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
@@ -82,8 +140,6 @@ const ContentHub = () => {
             </button>
           </div>
         </div>
-
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
             <thead className="bg-gray-50 dark:bg-gray-900">
@@ -107,7 +163,7 @@ const ContentHub = () => {
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{item.type}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm">
+                    <td className="whitespace-nowHrap px-6 py-4 text-sm">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusChip(item.status)}`}>
                         {item.status}
                       </span>

@@ -18,9 +18,14 @@ const apiService = {
     const response = await fetch(`${BASE_URL}${endpoint}`, options);
     const data = await response.json();
 
-    if (!response.ok || data.status !== 200) {
+    // --- THIS IS THE FIX ---
+    // We only check response.ok. This correctly handles all
+    // 4xx (client) and 5xx (server) errors.
+    if (!response.ok) {
       throw new Error(data.message || data.error || 'API request failed');
     }
+    // -----------------------
+
     return data;
   },
 
@@ -38,6 +43,10 @@ const apiService = {
 
   onboard(onboardingData) {
     return this.request('/auth/onboarding', 'POST', onboardingData);
+  },
+
+  generateContent(prompt, contentType = 'blog') {
+    return this.request('/content/generate', 'POST', { prompt, contentType });
   },
 };
 
