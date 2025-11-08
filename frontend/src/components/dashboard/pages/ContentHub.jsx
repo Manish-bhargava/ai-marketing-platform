@@ -14,11 +14,10 @@ import {
   Filter,
 } from 'lucide-react';
 import apiService from '../../../services/apiService';
-import GeneratedContentDisplay from './GeneratedContentDisplay'; // <-- 1. IMPORT new component
+import GeneratedContentDisplay from './GeneratedContentDisplay';
 
 // --- Content Hub Page ---
 const ContentHub = () => {
-  // ... (contentItems and getStatusChip functions remain the same) ...
   const contentItems = [
     { name: 'Q3 Marketing Report Draft', type: 'Document', status: 'Draft', date: '2024-07-20', icon: FileText },
     { name: 'New Product Launch Video Ad', type: 'Video', status: 'Review', date: '2024-07-18', icon: Video },
@@ -28,8 +27,9 @@ const ContentHub = () => {
   ];
 
   const [prompt, setPrompt] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState(null); // This will now store the OBJECT
+  const [isLoading, setIsLoading] = useState(false); // For the "Generate" button
+  // const [isImageLoading, setIsImageLoading] = useState(false); // REMOVED: Not needed if we wait for everything
+  const [generatedContent, setGeneratedContent] = useState(null);
   const [error, setError] = useState(null);
   
   const getStatusChip = (status) => {
@@ -42,28 +42,30 @@ const ContentHub = () => {
     }
   };
 
-  // --- 2. UPDATE handleGenerateContent ---
   const handleGenerateContent = async () => {
     setIsLoading(true);
     setError(null);
     setGeneratedContent(null);
+
     try {
       const response = await apiService.generateContent(prompt);
 
-      // Store the actual JSON object from the job
       if (response.success && response.job && response.job.generatedContent) {
-        setGeneratedContent(response.job.generatedContent); // <-- NO JSON.stringify
+        // Wait 10 seconds, then show EVERYTHING at once
+        setTimeout(() => {
+          setGeneratedContent(response.job.generatedContent);
+          setIsLoading(false); // Stop loading only after 10s
+        }, 1000); // 10 seconds buffer
+
       } else {
         throw new Error(response.message || 'Invalid response format from API');
       }
     } catch (err) {
       setGeneratedContent(null);
       setError(err.message || 'Something went wrong');
-    } finally {
       setIsLoading(false);
     }
   };
-  // ----------------------------------------
 
   return (
     <div className="animate-fade-in-sm space-y-6">
@@ -98,20 +100,28 @@ const ContentHub = () => {
             onChange={(e) => setPrompt(e.target.value)}
           ></textarea>
           <button
-            className="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+            className="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-all"
             onClick={handleGenerateContent}
             disabled={isLoading || !prompt}
           >
-            {isLoading ? 'Generating (this may take 10s)...' : 'Generate Content'}
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generating (approx 10s)...
+              </span>
+            ) : 'Generate Content'}
           </button>
         </div>
       </div>
 
-      {/* --- 3. UPDATE The Display Logic --- */}
+      {/* --- Display Section --- */}
       
-      {/* Show error if one exists */}
+      {/* Error State */}
       {error && (
-        <div className="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-950">
+        <div className="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-950 animate-fade-in">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Error</h3>
           <div className="mt-4 rounded-md bg-red-50 p-4 dark:bg-red-900/30">
             <p className="text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
@@ -119,17 +129,18 @@ const ContentHub = () => {
         </div>
       )}
 
-      {/* Show the formatted content component */}
+      {/* Generated Content Display */}
       {generatedContent && !error && (
-        <GeneratedContentDisplay content={generatedContent} />
+        <GeneratedContentDisplay 
+          content={generatedContent} 
+          isImageLoading={false} 
+        />
       )}
-      {/* ------------------------------- */}
-
+      {/* ----------------------- */}
 
       {/* Content Library */}
       <div className="rounded-lg bg-white shadow-sm dark:bg-gray-950">
         <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-800">
-          {/* ... (rest of the table) ... */}
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Your Content Library</h2>
           <div className="flex items-center gap-2">
             <button className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
@@ -163,7 +174,7 @@ const ContentHub = () => {
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{item.type}</td>
-                    <td className="whitespace-nowHrap px-6 py-4 text-sm">
+                    <td className="whitespace-nowrap px-6 py-4 text-sm">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusChip(item.status)}`}>
                         {item.status}
                       </span>
