@@ -16,7 +16,6 @@ import {
 import apiService from '../../../services/apiService';
 import GeneratedContentDisplay from './GeneratedContentDisplay';
 
-// --- Content Hub Page ---
 const ContentHub = () => {
   const contentItems = [
     { name: 'Q3 Marketing Report Draft', type: 'Document', status: 'Draft', date: '2024-07-20', icon: FileText },
@@ -27,11 +26,10 @@ const ContentHub = () => {
   ];
 
   const [prompt, setPrompt] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // For the "Generate" button
-  // const [isImageLoading, setIsImageLoading] = useState(false); // REMOVED: Not needed if we wait for everything
+  const [isLoading, setIsLoading] = useState(false);
   const [generatedContent, setGeneratedContent] = useState(null);
   const [error, setError] = useState(null);
-  
+
   const getStatusChip = (status) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
@@ -43,6 +41,7 @@ const ContentHub = () => {
   };
 
   const handleGenerateContent = async () => {
+    if (!prompt.trim()) return;
     setIsLoading(true);
     setError(null);
     setGeneratedContent(null);
@@ -50,28 +49,23 @@ const ContentHub = () => {
     try {
       const response = await apiService.generateContent(prompt);
 
-      if (response.success && response.job && response.job.generatedContent) {
-        // Wait 10 seconds, then show EVERYTHING at once
-        setTimeout(() => {
-          setGeneratedContent(response.job.generatedContent);
-          setIsLoading(false); // Stop loading only after 10s
-        }, 1000); // 10 seconds buffer
-
+      if (response && response.data) {
+        setGeneratedContent(response.data);
+      } else if (response) {
+        setGeneratedContent(response);
       } else {
-        throw new Error(response.message || 'Invalid response format from API');
+        setError('No response received from API.');
       }
     } catch (err) {
-      setGeneratedContent(null);
-      setError(err.message || 'Something went wrong');
+      setError(err.message || 'Something went wrong while generating content.');
+    } finally {
       setIsLoading(false);
     }
   };
 
   return (
     <div className="animate-fade-in-sm space-y-6">
-      {/* Quick Actions */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Drag & Drop */}
         <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-950">
           <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">Drag & Drop Files</h3>
@@ -80,11 +74,10 @@ const ContentHub = () => {
             Browse Files
           </button>
         </div>
-        
-        {/* Generate Content */}
+
         <div className="rounded-lg bg-white p-8 shadow-sm dark:bg-gray-950">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50">
               <Zap className="h-6 w-6" />
             </div>
             <div>
@@ -92,13 +85,15 @@ const ContentHub = () => {
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get instant content ideas, outlines, or full drafts using AI.</p>
             </div>
           </div>
+
           <textarea
             className="mt-4 w-full rounded-md border border-gray-300 p-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             rows="3"
-            placeholder="Describe the content you need (e.g., 'a blog post outline...')"
+            placeholder="Describe the content you need..."
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           ></textarea>
+
           <button
             className="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-all"
             onClick={handleGenerateContent}
@@ -110,16 +105,15 @@ const ContentHub = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Generating (approx 10s)...
+                Generating...
               </span>
-            ) : 'Generate Content'}
+            ) : (
+              'Generate Content'
+            )}
           </button>
         </div>
       </div>
 
-      {/* --- Display Section --- */}
-      
-      {/* Error State */}
       {error && (
         <div className="rounded-lg bg-white p-6 shadow-sm dark:bg-gray-950 animate-fade-in">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Error</h3>
@@ -129,16 +123,10 @@ const ContentHub = () => {
         </div>
       )}
 
-      {/* Generated Content Display */}
       {generatedContent && !error && (
-        <GeneratedContentDisplay 
-          content={generatedContent} 
-          isImageLoading={false} 
-        />
+        <GeneratedContentDisplay content={generatedContent} isImageLoading={false} />
       )}
-      {/* ----------------------- */}
 
-      {/* Content Library */}
       <div className="rounded-lg bg-white shadow-sm dark:bg-gray-950">
         <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Your Content Library</h2>
@@ -151,6 +139,7 @@ const ContentHub = () => {
             </button>
           </div>
         </div>
+
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
             <thead className="bg-gray-50 dark:bg-gray-900">
@@ -162,6 +151,7 @@ const ContentHub = () => {
                 <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Actions</th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-950">
               {contentItems.map((item) => {
                 const ItemIcon = item.icon;

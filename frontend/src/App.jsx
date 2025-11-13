@@ -1,77 +1,102 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { ThemeProvider } from './contexts/ThemeContext';
+import React, { useContext } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
 
 import LandingPage from './components/landing/LandingPage';
 import LoginPage from './components/auth/LoginPage';
 import OnboardingWizard from './components/auth/OnboardingWizard';
 import DashboardLayout from './components/dashboard/DashboardLayout';
+import Profile from './components/dashboard/pages/Profile';
 
-// --- Main App Controller ---
-function AppContent() {
-  const [currentView, setCurrentView] = useState('landing');
-  const [dashboardView, setDashboardView] = useState('content-hub'); // Default dashboard page
-  
-  const { isAuthenticated, user, logout } = useContext(AuthContext);
+// ✅ Private route wrapper
+const PrivateRoute = ({ children }) => {
+  const { isAuthenticated, isLoading } = useContext(AuthContext);
+  if (isLoading) return null;
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
 
-  const [formData, setFormData] = useState({
-    companyName: 'Acme Marketing Solutions',
-    industry: 'Digital Marketing, SaaS, E-commerce',
-    companySize: 50,
-    annualRevenue: '5,000,000',
-    targetAudience: '',
-    brandVoice: 'Professional',
-  });
+// ✅ App routes (clean logic — no looping redirects)
+const AppRoutes = () => {
+  const { isAuthenticated, user, isLoading } = useContext(AuthContext);
 
-  // Main router effect
-  useEffect(() => {
-    if (isAuthenticated) {
-      if (user && !user.onboardingCompleted) {
-        setCurrentView('onboarding');
-      } else if (user && user.onboardingCompleted) {
-        setCurrentView('dashboard');
-      }
-    } else {
-      if (currentView !== 'login') {
-        setCurrentView('landing');
-      }
-    }
-  }, [isAuthenticated, user, currentView]);
+  if (isLoading) return null;
 
-  // Main navigation function
-  const navigate = (view) => {
-    setCurrentView(view);
-  };
-  
-  // Dashboard-specific navigation
-  const navigateDashboard = (view) => {
-    setDashboardView(view);
-  }
+  return (
+    <Routes>
+      {/* 🌍 Public Routes */}
+      <Route
+        path="/"
+        element={
+          <LandingPage/>
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          isAuthenticated
+            ? user?.onboardingCompleted
+              ? <Navigate to="/dashboard" replace />
+              : <Navigate to="/onboarding" replace />
+            : <LoginPage />
+        }
+      />
 
-  // Render logic
-  if (currentView === 'login') {
-    return <LoginPage onNavigate={navigate} />;
-  }
+      {/* 🧭 Onboarding route */}
+      <Route
+        path="/onboarding"
+        element={
+          <PrivateRoute>
+            {user?.onboardingCompleted ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <OnboardingWizard />
+            )}
+          </PrivateRoute>
+        }
+      />
 
-  if (currentView === 'onboarding') {
-    return <OnboardingWizard formData={formData} setFormData={setFormData} onExit={() => logout()} />;
-  }
+      {/* 👤 Profile page under dashboard */}
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute>
+            <Profile />
+          </PrivateRoute>
+        }
+      />
 
-  if (currentView === 'dashboard') {
-    return <DashboardLayout dashboardView={dashboardView} onNavigate={navigateDashboard} />;
-  }
+      {/* 🏠 Main Dashboard layout */}
+      <Route
+        path="/dashboard/*"
+        element={
+          <PrivateRoute>
+            {user?.onboardingCompleted ? (
+              <DashboardLayout />
+            ) : (
+              <Navigate to="/onboarding" replace />
+            )}
+          </PrivateRoute>
+        }
+      />
 
-  // Default view: 'landing'
-  return <LandingPage onNavigate={navigate} isAuthenticated={isAuthenticated} onLogout={logout} />;
-}
+      {/* 🚫 Fallback for unknown routes */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
 
-// Final App component
+// ✅ Final App Wrapper
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

@@ -1,52 +1,58 @@
-// --- API Service ---
-const BASE_URL = 'http://localhost:3000/api/v1';
+// src/services/apiService.js
+const BASE_URL = 'http://localhost:3000/api/v1'; // change if needed
+
+// Helper function to safely handle both JSON and text responses
+async function handleResponse(response) {
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    // if not JSON, read as text
+    const text = await response.text();
+    data = { message: text };
+  }
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Request failed');
+  }
+
+  return data;
+}
 
 const apiService = {
-  async request(endpoint, method, body = null) {
-    const options = {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include', // Send cookies
-    };
-
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
-
-    const response = await fetch(`${BASE_URL}${endpoint}`, options);
-    const data = await response.json();
-
-    // --- THIS IS THE FIX ---
-    // We only check response.ok. This correctly handles all
-    // 4xx (client) and 5xx (server) errors.
-    if (!response.ok) {
-      throw new Error(data.message || data.error || 'API request failed');
-    }
-    // -----------------------
-
-    return data;
+  async login(email, password) {
+    const response = await fetch(`${BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    return handleResponse(response);
   },
 
-  login(email, password) {
-    return this.request('/auth/login', 'POST', { email, password });
+  async signup(email, password) {
+    const response = await fetch(`${BASE_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    return handleResponse(response);
   },
 
-  signup(email, password) {
-    return this.request('/auth/signup', 'POST', { email, password });
+  async logout() {
+    const response = await fetch(`${BASE_URL}/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return handleResponse(response);
   },
 
-  logout() {
-    return this.request('/auth/logout', 'GET');
-  },
-
-  onboard(onboardingData) {
-    return this.request('/auth/onboarding', 'POST', onboardingData);
-  },
-
-  generateContent(prompt, contentType = 'blog') {
-    return this.request('/content/generate', 'POST', { prompt, contentType });
+  async onboard(onboardingData) {
+    const response = await fetch(`${BASE_URL}/auth/onboard`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(onboardingData),
+    });
+    return handleResponse(response);
   },
 };
 

@@ -15,7 +15,7 @@ const Footer = () => {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
           <div className="col-span-2 lg:col-span-1">
             <a href="#" className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">Aura</span>
+              <img src='./logo4.png'/>
             </a>
             <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">AI-powered content marketing.</p>
             <div className="mt-6 flex space-x-5">
@@ -34,8 +34,8 @@ const Footer = () => {
           ))}
         </div>
         <div className="mt-16 border-t border-gray-900/10 pt-8 text-center dark:border-white/10">
-          <p className="text-sm text-gray-600 dark:text-gray-400">&copy; {new Date().getFullYear()} Aura AI, Inc. All rights reserved.</p>
-          <p className="mt-2 text-xs text-gray-500">Made with <a href="https://visily.ai/" target="_blank" rel="noopener noreferrer" className="font-medium text-indigo-600 hover:underline">Visily</a></p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">&copy; {new Date().getFullYear()} AI-MARKETING-SAAS, Inc. All rights reserved.</p>
+          <p className="mt-2 text-xs text-gray-500">Made with <a href="https://visily.ai/" target="_blank" rel="noopener noreferrer" className="font-medium text-indigo-600 hover:underline">AMS</a></p>
         </div>
       </div>
       <style>{`

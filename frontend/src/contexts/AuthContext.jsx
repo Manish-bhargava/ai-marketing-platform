@@ -1,14 +1,28 @@
-import React, { useState, createContext } from 'react';
+import React, { useState, useEffect, createContext } from 'react';
 import apiService from '../services/apiService';
 
 // --- Auth Context ---
 const AuthContext = createContext();
 
 const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('user'));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // --- Save user to localStorage when logged in ---
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+      setIsAuthenticated(true);
+    } else {
+      localStorage.removeItem('user');
+      setIsAuthenticated(false);
+    }
+  }, [user]);
 
   const login = async (email, password) => {
     setIsLoading(true);
@@ -16,11 +30,9 @@ const AuthProvider = ({ children }) => {
     try {
       const response = await apiService.login(email, password);
       setUser(response.data);
-      setIsAuthenticated(true);
       return response.data;
     } catch (err) {
       setError(err.message);
-      setIsAuthenticated(false);
       throw err;
     } finally {
       setIsLoading(false);
@@ -33,11 +45,9 @@ const AuthProvider = ({ children }) => {
     try {
       const response = await apiService.signup(email, password);
       setUser(response.data);
-      setIsAuthenticated(true);
       return response.data;
     } catch (err) {
       setError(err.message);
-      setIsAuthenticated(false);
       throw err;
     } finally {
       setIsLoading(false);
@@ -50,11 +60,9 @@ const AuthProvider = ({ children }) => {
     try {
       await apiService.logout();
       setUser(null);
-      setIsAuthenticated(false);
     } catch (err) {
       setError(err.message);
       setUser(null);
-      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }

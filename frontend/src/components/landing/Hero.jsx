@@ -36,7 +36,7 @@ const Hero = ({ onNavigate }) => (
         <div className="relative mt-10 animate-fade-in-up [animation-delay:600ms] lg:mt-0">
           <div className="aspect-[3/2] w-full overflow-hidden rounded-2xl shadow-2xl ring-1 ring-gray-900/10 dark:ring-white/10">
             <video className="h-full w-full object-cover" autoPlay loop muted playsInline>
-              <source src="src/assets/sample.mp4" type="video/mp4" />
+              <source src="src/assets/hero_video.mp4" type="video/mp4" />
             </video>
           </div>
         </div>

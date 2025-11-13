@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import Header from './Header';
 import Hero from './Hero';
 import Features from './Features';
@@ -7,25 +7,44 @@ import Pricing from './Pricing';
 import Testimonials from './Testimonials';
 import CTA from './CTA';
 import Footer from './Footer';
+import { AuthContext } from '../../contexts/AuthContext';
 
-// --- This component wraps all the individual landing page sections ---
-const LandingPage = ({ onNavigate, isAuthenticated, onLogout }) => (
+// --- Landing Page Wrapper ---
+const LandingPage = () => {
+  const { isAuthenticated, logout } = useContext(AuthContext);
+
+  const handleNavigate = (sectionId) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  return (
     <div className="App bg-white text-gray-800 antialiased dark:bg-gray-900 dark:text-gray-200">
+      {/* Header dynamically handles auth state */}
       <Header 
-        onNavigate={onNavigate} 
+        onNavigate={handleNavigate} 
         isAuthenticated={isAuthenticated} 
-        onLogout={onLogout} 
+        onLogout={handleLogout} 
       />
+
       <main>
-        <Hero onNavigate={onNavigate} />
+        <Hero onNavigate={handleNavigate} />
         <Features />
         <Workflow />
         <Pricing />
         <Testimonials />
-        <CTA onNavigate={onNavigate} />
+        <CTA onNavigate={handleNavigate} />
       </main>
+
       <Footer />
     </div>
-);
+  );
+};
 
 export default LandingPage;
