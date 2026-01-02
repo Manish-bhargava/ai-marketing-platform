@@ -6,7 +6,11 @@ const Job = require('../../models/Job');   // Updated path: go up two levels
  * Handles the incoming request, creates a job ticket, and waits for completion.
  */
 const generateContent = async (req, res) => {
+  
+  console.log("🚀 generateContent HIT");
+  console.log("REQ.USER:", req.user);
   let jobId = null;
+
   try {
     const { prompt } = req.body;
 
@@ -42,7 +46,6 @@ const generateContent = async (req, res) => {
     console.log(`[Log 2] Job ${jobId} created. Sending to AI Kitchen...`);
 
     // 3. Send to "Kitchen" and AWAIT it (so we don't send response until done)
-    // In a larger app, you might not await this and instead use webhooks/polling.
     await processContentBackground(jobId, prompt, user);
 
     console.log(`[Log 3] Job ${jobId} finished processing. Fetching result...`);
@@ -82,7 +85,7 @@ const generateContent = async (req, res) => {
 /**
  * 👨‍🍳 PART 2: THE "KITCHEN" (Interacts with AI APIs)
  * 1. Calls Gemini for text.
- * 2. Generates an Image URL based on the prompt.
+ * 2. FETCHES image from Pollinations (Authorized) & converts to Base64.
  * 3. Updates the Job ticket.
  */
 const processContentBackground = async (jobId, prompt, user) => {
@@ -106,8 +109,10 @@ const processContentBackground = async (jobId, prompt, user) => {
 
     // --- B. CALL GEMINI FOR TEXT ---
     console.log(`[Kitchen] Calling Gemini for Job ${jobId}...`);
+    
+    // Using gemini-1.5-flash for stability
     const textResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,22 +136,44 @@ const processContentBackground = async (jobId, prompt, user) => {
     // Parse the JSON text from Gemini
     const rawText = textData.candidates[0].content.parts[0].text;
     const cleanedJsonText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-    let generatedContent = JSON.parse(cleanedJsonText);
+    
+    let generatedContent;
+    try {
+        generatedContent = JSON.parse(cleanedJsonText);
+    } catch (e) {
+        throw new Error("Failed to parse JSON from Gemini response");
+    }
 
-    // --- C. GENERATE IMAGE BASED ON PROMPT ---
-    // We use the user's prompt + industry to create a specific image URL.
-    // Pollinations.ai generates a real image on-the-fly when this URL is loaded by the frontend.
-    console.log(`[Kitchen] creating image URL for Job ${jobId}...`);
+    // --- C. FETCH IMAGE (AUTHORIZED) ---
+    console.log(`[Kitchen] Fetching authorized image for Job ${jobId}...`);
     
     const imagePrompt = `professional, modern marketing image for ${user.industry || 'business'} industry, related to: ${prompt}, vibrant colors, high quality, 4k, no text`;
     const encodedPrompt = encodeURIComponent(imagePrompt);
-    const randomSeed = Math.floor(Math.random() * 9999); // Ensures fresh image if prompt is repeated
+    const randomSeed = Math.floor(Math.random() * 99999);
     
-    // This URL *is* the image. No need to wait for it to generate here.
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${randomSeed}&width=1280&height=720&nologo=true&model=flux`;
+    // 1. Construct the Pollinations URL with required parameters
+    const pollinationUrl = `https://gen.pollinations.ai/image/${encodedPrompt}?model=zimage&width=1024&height=1024&seed=${randomSeed}&enhance=false&negative_prompt=worst%20quality%2C%20blurry&nologo=false`;
 
-    // Add image to content object
-    generatedContent.imageUrl = imageUrl;
+    // 2. Perform the fetch WITH the Authorization header
+    // NOTE: Make sure POLLINATIONS_API_KEY is in your .env file
+    const imageResponse = await fetch(pollinationUrl, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${process.env.POLLINATIONS_API_KEY}`
+        }
+    });
+
+    if (!imageResponse.ok) {
+        throw new Error(`Pollinations Image API Failed: ${imageResponse.status} - ${imageResponse.statusText}`);
+    }
+
+    // 3. Convert the image buffer to Base64
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+    
+    // 4. Add Base64 image to content object
+    generatedContent.imageUrl = base64Image;
 
     // --- D. SAVE SUCCESS TO DB ---
     await Job.findByIdAndUpdate(jobId, {
@@ -166,5 +193,4 @@ const processContentBackground = async (jobId, prompt, user) => {
 
 module.exports = {
   generateContent,
-  // processContentBackground is internal, but we can export it if needed for testing
 };
